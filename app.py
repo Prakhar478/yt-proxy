@@ -1,0 +1,32 @@
+from flask import Flask, jsonify
+import yt_dlp
+import os
+
+app = Flask(__name__)
+
+@app.route("/stream/<video_id>")
+def get_stream(video_id):
+    try:
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "quiet": True,
+            "no_warnings": True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            formats = info.get("formats", [])
+            audio = [f for f in formats if f.get("acodec") != "none" and f.get("vcodec") == "none" and f.get("url")]
+            if not audio:
+                audio = [f for f in formats if f.get("url")]
+            best = sorted(audio, key=lambda x: x.get("abr", 0) or 0, reverse=True)[0]
+            return jsonify({"streamUrl": best["url"], "duration": int(info.get("duration", 0)), "title": info.get("title", ""), "thumbnail": info.get("thumbnail", "")})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"})
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
