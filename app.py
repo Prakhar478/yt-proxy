@@ -4,6 +4,8 @@ import os
 
 app = Flask(__name__)
 
+COOKIES_FILE = "cookies.txt"
+
 @app.route("/stream/<video_id>")
 def get_stream(video_id):
     try:
@@ -12,6 +14,9 @@ def get_stream(video_id):
             "quiet": True,
             "no_warnings": True,
         }
+        if os.path.exists(COOKIES_FILE):
+            ydl_opts["cookiefile"] = COOKIES_FILE
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
             formats = info.get("formats", [])
