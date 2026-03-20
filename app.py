@@ -10,7 +10,7 @@ COOKIES_FILE = "cookies.txt"
 def get_stream(video_id):
     try:
         ydl_opts = {
-            "format": "bestaudio/best",
+            "format": "bestaudio/best/best",
             "quiet": True,
             "no_warnings": True,
         }
@@ -20,11 +20,24 @@ def get_stream(video_id):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
             formats = info.get("formats", [])
+
+            # Try audio only first
             audio = [f for f in formats if f.get("acodec") != "none" and f.get("vcodec") == "none" and f.get("url")]
+            
+            # Fallback to any format with url
             if not audio:
                 audio = [f for f in formats if f.get("url")]
-            best = sorted(audio, key=lambda x: x.get("abr", 0) or 0, reverse=True)[0]
-            return jsonify({"streamUrl": best["url"], "duration": int(info.get("duration", 0)), "title": info.get("title", ""), "thumbnail": info.get("thumbnail", "")})
+
+            if not audio:
+                return jsonify({"error": "No formats found"}), 404
+
+            best = sorted(audio, key=lambda x: x.get("abr") or x.get("tbr") or 0, reverse=True)[0]
+            return jsonify({
+                "streamUrl": best["url"],
+                "duration": int(info.get("duration", 0)),
+                "title": info.get("title", ""),
+                "thumbnail": info.get("thumbnail", "")
+            })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
